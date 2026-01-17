@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+    id("com.ryandens.javaagent-application") version "0.9.1"
+}
+
+group = 'io.github.urfate'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.bytebuddy:byte-buddy:1.18.3'
+    implementation 'net.bytebuddy:byte-buddy-agent:1.18.3'
+
+    def hytaleJarPath = findProperty('hytale.jar.path') ?:
+            System.getenv('HYTALE_JAR_PATH') ?:
+                    'libs/HytaleServer.jar'
+
+    compileOnly files(hytaleJarPath)
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jar {
+    archiveBaseName = 'hypeloader-agent'
+
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+
+    manifest {
+        attributes(
+                'Premain-Class': 'io.github.urfate.hypeloader.HypeLoaderAgent',
+                'Agent-Class': 'io.github.urfate.hypeloader.HypeLoaderAgent',
+                'Can-Redefine-Classes': 'true',
+                'Can-Retransform-Classes': 'true',
+                'Implementation-Version': project.version
+        )
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+task copyAgent(type: Copy) {
+    from jar
+    into "${projectDir}/output"
+    rename { "agent.jar" }
+}
+
+build.dependsOn copyAgent
+
+test {
+    useJUnitPlatform()
+}
